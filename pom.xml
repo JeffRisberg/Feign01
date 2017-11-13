@@ -3,11 +3,11 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.incra</groupId>
+  <groupId>com.company</groupId>
   <artifactId>Feign01</artifactId>
   <packaging>jar</packaging>
   <version>9.0.0</version>
-  <name>Feign Example</name>
+  <name>Feign Example 1</name>
 
   <dependencies>
     <dependency>
