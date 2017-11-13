@@ -1,7 +1,13 @@
 package com.company;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import feign.*;
+import feign.Feign;
+import feign.Headers;
+import feign.Logger;
+import feign.Param;
+import feign.RequestLine;
+import feign.Response;
 import feign.codec.Decoder;
 import feign.codec.ErrorDecoder;
 import feign.jackson.JacksonDecoder;
@@ -16,15 +22,69 @@ import java.util.stream.Collectors;
  */
 public class Main {
 
+    @Headers("Accept: application/json")
     interface StateData {
 
+        @JsonIgnoreProperties(ignoreUnknown = true)
         class StateList {
-           List<State> states = new ArrayList<State>();
+            List<State> country_fact_sheets = new ArrayList<State>();
+            String api_version;
+            Integer page;
+            Integer per_page;
+
+            public List<State> getCountry_fact_sheets() {
+                return country_fact_sheets;
+            }
+
+            public void setCountry_fact_sheets(List<State> country_fact_sheets) {
+                this.country_fact_sheets = country_fact_sheets;
+            }
+
+            public String getApi_version() {
+                return api_version;
+            }
+
+            public void setApi_version(String api_version) {
+                this.api_version = api_version;
+            }
+
+            public Integer getPage() {
+                return page;
+            }
+
+            public void setPage(Integer page) {
+                this.page = page;
+            }
+
+            public Integer getPer_page() {
+                return per_page;
+            }
+
+            public void setPer_page(Integer per_page) {
+                this.per_page = per_page;
+            }
         }
 
+        @JsonIgnoreProperties(ignoreUnknown = true)
         class State {
-            String name;
             Integer id;
+            String title;
+
+            public Integer getId() {
+                return id;
+            }
+
+            public void setId(Integer id) {
+                this.id = id;
+            }
+
+            public String getTitle() {
+                return title;
+            }
+
+            public void setTitle(String title) {
+                this.title = title;
+            }
         }
 
         @RequestLine("GET /api/v1/?command=get_country_fact_sheets&page=0")
@@ -48,104 +108,17 @@ public class Main {
         }
     }
 
-    interface GitHub {
-
-        class Repository {
-            String name;
-        }
-
-        class Contributor {
-            String login;
-        }
-
-        @RequestLine("GET /users/{username}/repos?sort=full_name")
-        List<Repository> repos(@Param("username") String owner);
-
-        @RequestLine("GET /repos/{owner}/{repo}/contributors")
-        List<Contributor> contributors(@Param("owner") String owner, @Param("repo") String repo);
-
-        /**
-         * Lists all contributors for all repos owned by a user.
-         */
-        default List<String> contributors(String owner) {
-            return repos(owner).stream()
-                    .flatMap(repo -> contributors(owner, repo.name).stream())
-                    .map(c -> c.login)
-                    .distinct()
-                    .collect(Collectors.toList());
-        }
-
-        static GitHub connect() {
-            ObjectMapper mapper = new ObjectMapper();
-
-            Decoder decoder = new JacksonDecoder(mapper);
-
-            return Feign.builder()
-                    .decoder(decoder)
-                    .errorDecoder(new GitHubErrorDecoder(decoder))
-                    .logger(new Logger.ErrorLogger())
-                    .logLevel(Logger.Level.BASIC)
-                    .target(GitHub.class, "https://api.github.com");
-        }
-    }
-
-    static class GitHubClientError extends RuntimeException {
-        private String message; // parsed from json
-
-        @Override
-        public String getMessage() {
-            return message;
-        }
-    }
-
     public static void main(String... args) {
 
         try {
             StateData stateData = StateData.connect();
             StateData.StateList stateList = stateData.allStates();
             System.out.println(stateList);
-            for (StateData.State state : stateList.states) {
-                System.out.println(state.id + " " + state.name);
+            for (StateData.State state : stateList.country_fact_sheets) {
+                System.out.println(state.id + " " + state.title);
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
-        }
-
-        if (false) {
-            GitHub github = GitHub.connect();
-
-            System.out.println("Let's fetch and print a list of the contributors to this org.");
-            List<String> contributors = github.contributors("brisberg");
-            for (String contributor : contributors) {
-                System.out.println(contributor);
-            }
-
-            System.out.println("Now, let's cause an error.");
-            try {
-                github.contributors("brisberg", "some-unknown-project");
-            } catch (GitHubClientError e) {
-                System.out.println(e.getMessage());
-            }
-        }
-    }
-
-    static class GitHubErrorDecoder implements ErrorDecoder {
-
-        final Decoder decoder;
-        final ErrorDecoder defaultDecoder = new ErrorDecoder.Default();
-
-        GitHubErrorDecoder(Decoder decoder) {
-            this.decoder = decoder;
-        }
-
-        @Override
-        public Exception decode(String methodKey, Response response) {
-            try {
-                return (Exception) decoder.decode(response, GitHubClientError.class);
-            } catch (IOException fallbackToDefault) {
-                return defaultDecoder.decode(methodKey, response);
-            }
         }
     }
 }
